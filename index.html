@@ -129,9 +129,17 @@
   .proto-stage img{width:100%; height:100%; display:block; object-fit:contain; background:#fff;}
   .hotspot{
     position:absolute; cursor:pointer; border-radius:8px;
+    background:rgba(108,92,231,.07);
+    outline:1.5px solid rgba(108,92,231,.4);
+    box-shadow:0 0 0 rgba(108,92,231,.35);
+    animation: hotspotGlow 2.2s ease-in-out infinite;
     transition:background .15s ease, outline .15s ease;
   }
-  .hotspot:hover{background:rgba(108,92,231,.14); outline:2px solid rgba(108,92,231,.55);}
+  @keyframes hotspotGlow{
+    0%, 100% { box-shadow:0 0 0 rgba(108,92,231,.35); outline-color:rgba(108,92,231,.35); }
+    50% { box-shadow:0 0 14px rgba(108,92,231,.35); outline-color:rgba(108,92,231,.75); }
+  }
+  .hotspot:hover{background:rgba(108,92,231,.2); outline:2px solid rgba(108,92,231,.8); animation-play-state:paused;}
   .hotspot::after{
     content: attr(data-hint);
     position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%);
@@ -139,6 +147,38 @@
     border-radius:6px; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .15s ease;
   }
   .hotspot:hover::after{opacity:.92;}
+  .hotspot.nudge{ animation: hotspotNudge 0.6s ease-in-out 3; }
+  @keyframes hotspotNudge{
+    0%, 100% { transform:scale(1); box-shadow:0 0 0 rgba(108,92,231,.35); }
+    50% { transform:scale(1.045); box-shadow:0 0 22px rgba(108,92,231,.6); outline-color:rgba(108,92,231,.9); }
+  }
+
+  .cta-hint{
+    display:flex; align-items:center; gap:6px; font-size:13.5px; font-weight:600;
+    color:var(--purple-dark); margin:-4px 0 14px 2px;
+  }
+  .cta-hint .arrow{display:inline-block; animation: ctaArrow 1.3s ease-in-out infinite;}
+  @keyframes ctaArrow{ 0%,100%{transform:translateX(0);} 50%{transform:translateX(4px);} }
+
+  .coachmark{
+    position:fixed; inset:0; background:rgba(15,12,35,.55); z-index:100;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .coachmark-card{
+    background:#fff; border-radius:16px; max-width:400px; padding:26px 26px 22px; text-align:center;
+    box-shadow:0 20px 60px rgba(20,15,60,.35);
+  }
+  .coachmark-card .cm-icon{
+    width:44px;height:44px;border-radius:50%; margin:0 auto 14px; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,var(--blue),var(--purple)); color:#fff; font-size:20px; font-weight:700;
+  }
+  .coachmark-card h3{font-size:17px; margin-bottom:8px; font-family:Georgia,serif;}
+  .coachmark-card p{font-size:14px; color:var(--muted); line-height:1.6; margin-bottom:18px;}
+  .coachmark-card button{
+    background:var(--purple); color:#fff; border:none; padding:10px 22px; border-radius:9px;
+    font-size:13.5px; font-weight:700; cursor:pointer;
+  }
+  .coachmark-card button:hover{background:var(--purple-dark);}
 
   .decision-card{
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
@@ -263,6 +303,7 @@
       <div class="crumb" id="crumb">Flow: <b>Getting started</b></div>
       <div class="badge"><span class="step-dot"></span><span id="badge-text">Authenticate with Aadhaar OTP</span></div>
     </div>
+    <div class="cta-hint" id="cta-hint" style="display:none;"><span class="arrow">→</span><span id="cta-hint-text"></span></div>
     <div class="proto-stage" id="stage">
       <img id="stage-img" src="" alt="EntityLocker screen">
       <div id="hotspot-layer"></div>
@@ -274,16 +315,31 @@
 
 <div class="fixed-nav" id="fixed-nav" style="display:none;">
   <button class="nav-btn" id="btn-restart">↺ Restart</button>
-  <button class="nav-btn primary" id="btn-back">← Back to Document Selection</button>
+  <button class="nav-btn" id="btn-back">← Back to Document Selection</button>
+  <button class="nav-btn primary" id="btn-next" style="display:none;">Next →</button>
+</div>
+
+<div class="coachmark" id="coachmark" style="display:none;">
+  <div class="coachmark-card">
+    <div class="cm-icon">👆</div>
+    <h3>This prototype is clickable</h3>
+    <p>Highlighted areas on each screen are clickable — click through the flow like a live demo. If you'd rather not hunt for them, the <b>Next</b> button at the bottom always works too.</p>
+    <button id="coachmark-dismiss">Got it</button>
+  </div>
 </div>
 
 <script>
 /* ---------------- TAB SWITCHING ---------------- */
+let coachmarkShown = false;
 function switchTab(name){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
   document.getElementById('tab-explainer').classList.toggle('active', name==='explainer');
   document.getElementById('tab-prototype').classList.toggle('active', name==='prototype');
   document.getElementById('fixed-nav').style.display = (name==='prototype') ? 'flex' : 'none';
+  if(name==='prototype' && !coachmarkShown){
+    coachmarkShown = true;
+    document.getElementById('coachmark').style.display = 'flex';
+  }
 }
 document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click', ()=>switchTab(b.dataset.tab)));
 
@@ -420,13 +476,60 @@ const STATES = {
 };
 
 let history = ['auth-1'];
+let nudgeTimer = null;
+let nudgeInterval = null;
 
 function currentId(){ return history[history.length-1]; }
+
+function clearNudge(){
+  if(nudgeTimer){ clearTimeout(nudgeTimer); nudgeTimer = null; }
+  if(nudgeInterval){ clearInterval(nudgeInterval); nudgeInterval = null; }
+}
+
+function scheduleNudge(){
+  clearNudge();
+  nudgeTimer = setTimeout(()=>{
+    triggerNudge();
+    nudgeInterval = setInterval(triggerNudge, 6000);
+  }, 4500);
+}
+
+function triggerNudge(){
+  const spots = document.querySelectorAll('#hotspot-layer .hotspot');
+  spots.forEach(el=>{
+    el.classList.remove('nudge');
+    void el.offsetWidth; // restart animation
+    el.classList.add('nudge');
+  });
+}
+
+function setCtaHint(text){
+  const hintEl = document.getElementById('cta-hint');
+  const hintText = document.getElementById('cta-hint-text');
+  if(text){
+    hintText.textContent = text;
+    hintEl.style.display = 'flex';
+  } else {
+    hintEl.style.display = 'none';
+  }
+}
+
+function setNextButton(target){
+  const btn = document.getElementById('btn-next');
+  if(target){
+    btn.style.display = 'inline-flex';
+    btn.onclick = ()=>renderState(target);
+  } else {
+    btn.style.display = 'none';
+    btn.onclick = null;
+  }
+}
 
 function renderState(id, push=true){
   if(push){
     if(currentId() !== id) history.push(id);
   }
+  clearNudge();
   const s = STATES[id];
   document.getElementById('crumb').innerHTML = 'Flow: <b>' + s.flow + '</b>';
   document.getElementById('badge-text').textContent = s.badge;
@@ -458,6 +561,8 @@ function renderState(id, push=true){
     dLayer.querySelectorAll('.decision-opt').forEach(btn=>{
       btn.addEventListener('click', ()=>renderState(btn.dataset.target));
     });
+    setCtaHint('Choose one of the two options below');
+    setNextButton(null);
   } else if(s.custom === 'solepan-start'){
     imgEl.src = s.img;
     const hs1 = makeHotspot({x:39.9,y:46.2,w:20.1,h:3.9}, 'solepan-success', 'Try a PAN linked to Aadhaar');
@@ -465,6 +570,9 @@ function renderState(id, push=true){
     hs1.addEventListener('click', ()=>renderState('solepan-success'));
     hs2.addEventListener('click', ()=>renderState('solepan-fail'));
     hLayer.appendChild(hs1); hLayer.appendChild(hs2);
+    setCtaHint('Choose one of the two highlighted paths above');
+    setNextButton(null);
+    scheduleNudge();
   } else {
     imgEl.src = s.img;
     (s.hotspots||[]).forEach(h=>{
@@ -472,6 +580,19 @@ function renderState(id, push=true){
       el.addEventListener('click', ()=>renderState(h.target));
       hLayer.appendChild(el);
     });
+    const hs = s.hotspots || [];
+    if(hs.length === 1){
+      setCtaHint(hs[0].hint || 'Click the highlighted area to continue');
+      setNextButton(hs[0].target);
+      scheduleNudge();
+    } else if(hs.length > 1){
+      setCtaHint('Choose one of the highlighted options above');
+      setNextButton(null);
+      scheduleNudge();
+    } else {
+      setCtaHint(null);
+      setNextButton(null);
+    }
   }
 
   if(s.isEnd){
@@ -501,6 +622,9 @@ document.getElementById('btn-restart').addEventListener('click', ()=>{
 document.getElementById('btn-back').addEventListener('click', ()=>{
   history = ['auth-1','doc-selector'];
   renderState('doc-selector', false);
+});
+document.getElementById('coachmark-dismiss').addEventListener('click', ()=>{
+  document.getElementById('coachmark').style.display = 'none';
 });
 
 renderState('auth-1', false);
