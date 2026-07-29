@@ -127,6 +127,7 @@
     aspect-ratio: 1500 / 844;
   }
   .proto-stage img{width:100%; height:100%; display:block; object-fit:contain; background:#fff;}
+  .proto-stage.stage-freeform{aspect-ratio:auto; overflow:visible;}
   .hotspot{
     position:absolute; cursor:pointer; border-radius:8px;
     background:rgba(108,92,231,.07);
@@ -184,7 +185,11 @@
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     background:#fff;
   }
-  .decision-inner{max-width:520px; text-align:center; padding:20px;}
+  .stage-freeform .decision-card{
+    position:relative; inset:auto; display:flex;
+    padding:40px 16px; min-height:0;
+  }
+  .decision-inner{max-width:520px; width:100%; text-align:center; padding:20px;}
   .decision-inner .tag{
     display:inline-block; font-size:11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
     color:var(--purple-dark); background:#f1eefe; padding:5px 12px; border-radius:999px; margin-bottom:16px;
@@ -193,7 +198,7 @@
   .decision-inner p{color:var(--muted); font-size:14.5px; margin-bottom:26px; line-height:1.6;}
   .decision-opts{display:flex; gap:14px; justify-content:center; flex-wrap:wrap;}
   .decision-opt{
-    width:220px; text-align:left; background:#fff; border:1.5px solid var(--card-border); border-radius:12px;
+    flex:1 1 220px; max-width:260px; min-width:0; text-align:left; background:#fff; border:1.5px solid var(--card-border); border-radius:12px;
     padding:18px; cursor:pointer; transition:all .15s ease; font-family:inherit;
   }
   .decision-opt:hover{border-color:var(--purple); box-shadow:0 8px 22px rgba(108,92,231,.18); transform:translateY(-2px);}
@@ -246,6 +251,7 @@
   <div class="explainer">
 
     <div class="ex-hero">
+      <div class="kicker">Centre for Digital Public Infrastructure</div>
       <div class="bar"></div>
       <h1>Entity Locker Onboarding <em>Automation</em></h1>
       <p class="lede">How onboarding businesses onto EntityLocker can be fully or partially automated — using India's digital public infrastructure.</p>
@@ -412,7 +418,7 @@ const STATES = {
   'orgpan-decision': {custom:'decision', flow:'Organizational PAN', badge:'PAN not linked to GST — choose an authorization path',
     title:'PAN isn’t linked to GST', desc:'We are proposing two options for proof of authority in this case:',
     options:[
-      {tag:'Option 1 · Proposed', h:'Request director approval', s:'Fully automated — requires ITD to expose an API with director names/contact details.', target:'orgpan-dir-1'},
+      {tag:'Option 1 · Proposed', h:'Request director approval', s:'Fully automated — requires ITD/MCA to expose an API with director names and contact details.', target:'orgpan-dir-1'},
       {tag:'Option 2 · Status quo', h:'Upload authorization letter', s:'Manual review by the onboarding team, e.g. a board resolution.', target:'orgpan-manual-1'},
     ]},
   'orgpan-dir-1': {img:img('21'), flow:'Organizational PAN · Director approval', badge:'Fill requestor details', hotspots:[
@@ -445,7 +451,7 @@ const STATES = {
   'cin-decision': {custom:'decision', flow:'CIN', badge:'MCA can’t expose contact details — choose an authorization path',
     title:'CIN-based onboarding', desc:'MCA verifies the company, but doesn’t expose director contact details — so proof of authority needs one of two paths:',
     options:[
-      {tag:'Option 1 · Proposed', h:'Request director approval', s:'Fully automated — requires MCA to expose an API with director names/contact details.', target:'cin-dir-1'},
+      {tag:'Option 1 · Proposed', h:'Request director approval', s:'Fully automated — requires MCA to expose an API with director names and contact details.', target:'cin-dir-1'},
       {tag:'Option 2 · Status quo', h:'Upload authorization letter', s:'3–5 working day manual review process.', target:'cin-manual-1'},
     ]},
   'cin-dir-1': {img:img('29'), flow:'CIN · Director approval', badge:'Request ready — submit to director', hotspots:[
@@ -543,6 +549,7 @@ function renderState(id, push=true){
   imgEl.style.display = 'block';
 
   document.getElementById('end-banner-slot').innerHTML = '';
+  stage.classList.toggle('stage-freeform', s.custom === 'decision');
 
   if(s.custom === 'decision'){
     imgEl.style.display = 'none';
